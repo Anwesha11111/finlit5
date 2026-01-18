@@ -1,11 +1,7 @@
 {
-  "buildCommand": "",
-  "outputDirectory": "",
-  "functions": {
-    "api/[chat].js": { "runtime": "nodejs18.x" }
-  },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/[chat].js" },
+    { "source": "/api/chat", "destination": "/api/[chat].js" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
+
