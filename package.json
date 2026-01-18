@@ -2,15 +2,12 @@
   "name": "finlit-bot",
   "type": "module",
   "version": "1.0.0",
-  "scripts": {
-    "dev": "node api/[chat].js"
-  },
+  "scripts": { "dev": "node api/[chat].js" },
   "dependencies": {
     "express": "^4.19.2",
     "cors": "^2.8.5",
-    "mongoose": "^8.6.1",
+    "mongoose": "^8.6.1", 
     "dotenv": "^16.4.5"
   }
- 
+  // NO engines = Vercel auto Node 24.x ✅
 }
-
