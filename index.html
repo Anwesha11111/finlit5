@@ -40,6 +40,7 @@
         .bubble { 
             max-width: 70%; padding: 16px 20px; border-radius: 20px; 
             background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            word-wrap: break-word;
         }
         .user .bubble { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
         .input-area {
@@ -61,6 +62,7 @@
         .send-btn { background: linear-gradient(135deg, #4facfe, #00f2fe); color: white; }
         .upload-btn { background: #f0f0f0; color: #666; }
         .send-btn:hover, .upload-btn:hover { transform: scale(1.05); }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .chips {
             display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;
         }
@@ -70,6 +72,14 @@
         }
         .chip:hover { background: #667eea; color: white; }
         a { color: #4facfe; text-decoration: none; font-weight: 600; }
+        .typing {
+            display: inline-block;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
         @media (max-width: 768px) {
             .sidebar { width: 100%; height: auto; position: absolute; z-index: 10; }
             .chat-area { max-width: 100%; }
@@ -100,15 +110,16 @@
             <div class="input-container">
                 <button class="upload-btn" title="Upload document">📎</button>
                 <input type="text" id="userInput" placeholder="Ask about finance... (e.g., SIP, KYC, taxes)">
-                <button class="send-btn" onclick="sendMessage()">➤</button>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
             </div>
         </div>
     </div>
 
     <script>
-        const AI_URL = 'https://finlitbotapi.onrender.com';
         const messagesEl = document.getElementById('messages');
         const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        let typingDiv = null;
 
         function addMessage(role, content) {
             const div = document.createElement('div');
@@ -124,28 +135,67 @@
         async function sendMessage() {
             const message = userInput.value.trim();
             if (!message) return;
+            
+            // Disable input
+            sendBtn.disabled = true;
+            userInput.disabled = true;
+            
             addMessage('user', message);
             userInput.value = '';
 
-            // Show typing
-            const typingDiv = document.createElement('div');
+            // Show typing animation
+            typingDiv = document.createElement('div');
             typingDiv.className = 'message bot';
-            typingDiv.innerHTML = '<div class="avatar">🤖</div><div class="bubble">Typing...</div>';
+            typingDiv.innerHTML = '<div class="avatar">🤖</div><div class="bubble"><span class="typing">Typing...</span></div>';
             messagesEl.appendChild(typingDiv);
             messagesEl.scrollTop = messagesEl.scrollHeight;
 
             try {
-                const res = await fetch(`${AI_URL}/api/chat`, {
+                // Call Render AI directly (with CORS fix)
+                const res = await fetch('https://finlitbotapi.onrender.com/api/chat', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors',
                     body: JSON.stringify({ message })
                 });
+
+                if (!res.ok) {
+                    throw new Error(`Server error: ${res.status}`);
+                }
+
                 const data = await res.json();
-                messagesEl.removeChild(typingDiv);
-                addMessage('bot', data.response + (data.sources.length ? `<br><br>Sources: ${data.sources.map(s => `<a href="${s}" target="_blank">${s}</a>`).join(' | ')}` : ''));
-            } catch (e) {
-                messagesEl.removeChild(typingDiv);
-                addMessage('bot', 'Sorry, having trouble connecting. Try again!');
+                
+                if (typingDiv) {
+                    messagesEl.removeChild(typingDiv);
+                    typingDiv = null;
+                }
+
+                // Format response with sources
+                let responseHtml = data.response || 'No response received';
+                if (data.sources && data.sources.length > 0) {
+                    responseHtml += `<br><br><strong>📚 Sources:</strong><br>`;
+                    responseHtml += data.sources.map(s => `<a href="${s}" target="_blank">${s}</a>`).join(' | ');
+                }
+                
+                addMessage('bot', responseHtml);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                
+                if (typingDiv) {
+                    messagesEl.removeChild(typingDiv);
+                    typingDiv = null;
+                }
+                
+                addMessage('bot', `❌ Connection error: ${error.message}<br><br>Please check:<br>• AI service is running<br>• CORS enabled on Render<br>• Try again in a moment`);
+            } finally {
+                // Re-enable input
+                sendBtn.disabled = false;
+                userInput.disabled = false;
+                userInput.focus();
             }
         }
 
@@ -156,7 +206,7 @@
 
         function newChat() {
             messagesEl.innerHTML = '';
-            addMessage('bot', 'New chat started! Ask away.');
+            addMessage('bot', '✨ New chat started! Ask me anything about finance.');
         }
 
         userInput.addEventListener('keypress', e => {
@@ -165,6 +215,9 @@
                 sendMessage();
             }
         });
+
+        // Auto-focus input on load
+        window.onload = () => userInput.focus();
     </script>
 </body>
 </html>
