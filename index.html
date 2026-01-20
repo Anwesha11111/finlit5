@@ -135,13 +135,15 @@
         async function sendMessage() {
             const message = userInput.value.trim();
             if (!message) return;
-
+            
+            // Disable input
             sendBtn.disabled = true;
             userInput.disabled = true;
-
+            
             addMessage('user', message);
             userInput.value = '';
 
+            // Show typing animation
             typingDiv = document.createElement('div');
             typingDiv.className = 'message bot';
             typingDiv.innerHTML = '<div class="avatar">🤖</div><div class="bubble"><span class="typing">Typing...</span></div>';
@@ -149,6 +151,7 @@
             messagesEl.scrollTop = messagesEl.scrollHeight;
 
             try {
+                // Call Render AI directly (with CORS fix)
                 const res = await fetch('https://finlitbotapi.onrender.com/api/chat', {
                     method: 'POST',
                     headers: { 
@@ -164,27 +167,32 @@
                 }
 
                 const data = await res.json();
-
+                
                 if (typingDiv) {
                     messagesEl.removeChild(typingDiv);
                     typingDiv = null;
                 }
 
+                // Format response with sources
                 let responseHtml = data.response || 'No response received';
                 if (data.sources && data.sources.length > 0) {
                     responseHtml += `<br><br><strong>📚 Sources:</strong><br>`;
                     responseHtml += data.sources.map(s => `<a href="${s}" target="_blank">${s}</a>`).join(' | ');
                 }
-
+                
                 addMessage('bot', responseHtml);
-
+                
             } catch (error) {
+                console.error('Error:', error);
+                
                 if (typingDiv) {
                     messagesEl.removeChild(typingDiv);
                     typingDiv = null;
                 }
-                addMessage('bot', `❌ Connection error: ${error.message}`);
+                
+                addMessage('bot', `❌ Connection error: ${error.message}<br><br>Please check:<br>• AI service is running<br>• CORS enabled on Render<br>• Try again in a moment`);
             } finally {
+                // Re-enable input
                 sendBtn.disabled = false;
                 userInput.disabled = false;
                 userInput.focus();
@@ -208,6 +216,7 @@
             }
         });
 
+        // Auto-focus input on load
         window.onload = () => userInput.focus();
     </script>
 </body>
